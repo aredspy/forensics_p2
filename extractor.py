@@ -483,6 +483,99 @@ def find_JPG(source, list):
 
     return list
     
+def find_ZIP(source, list):
+
+    with open(source, 'r+b') as f:
+        mm = mmap.mmap(f.fileno(), 0)
+        offset = 0
+        header = 0
+        footer = 0
+
+        # keeps up with beginnings and endings of ZIP files
+        header_offsets_temp = []
+        header_offsets_final = []
+        compressed_file_sizes = []
+        filename_length_list = []
+        filenames = []
+        footer_offsets = []
+        files = []
+        final_files = []
+
+        while header != -1:
+
+            header = mm.find(b'\x50\x4B\x03\x04', offset)
+            
+            #only add header to list if byte sequence is found
+            if header != -1:
+                f.seek(header)
+                full_header_seven = f.read(7)
+                f.seek(header)
+                full_header_six = f.read(6)
+                # removes (from left to right) .docx, .jar, ZLock pro encrypted, and epub files from the file pool.
+                if full_header_seven != b'\x50\x4B\x03\x04\x14\x00\x06' and full_header_seven != b'\x50\x4B\x03\x04\x14\x00\x08' \
+                     and full_header_seven != b'\x50\x4B\x03\x04\x14\x00\x01' and full_header_six != b'\x50\x4B\x03\x04\x0A\x00':
+                    f.seek(header + 18) # this is where the file length is stored
+                    compressed_file_sizes.append(struct.unpack('<I', f.read(4))[0])
+
+                    f.seek(header + 26)
+                    filename_length = f.read(2)
+                    filename_length_padded = bytearray(filename_length)
+                    filename_length_padded.extend(b'\x00\x00')
+                    filename_length = struct.unpack('<I', filename_length_padded)[0]
+                    filename_length_list.append(filename_length)
+                    
+                    f.seek(header + 30)
+                    filenames.append(f.read(filename_length))
+                
+                    header_offsets_temp.append(header)
+                offset = header + 4
+
+        #starting from each header, find the footer
+        for i in range(len(header_offsets_temp)):
+            comment_size = 0
+            offset = header_offsets_temp[i]
+            footer = mm.find(bytes(filenames[i]), offset + (compressed_file_sizes[i] - 22 - filename_length_list[i]))
+            second_footer_part = mm.find(b'\x50\x4B', footer + filename_length_list[i])
+            third_footer_part = mm.find(b'\x00\x00\x00', second_footer_part + 19, second_footer_part + 23)
+
+            if footer != -1 and second_footer_part != -1:
+                if third_footer_part == -1:
+                    f.seek(second_footer_part + 20)
+                    comment_size = f.read(1)
+                footer_offsets.append(second_footer_part)
+                header_offsets_final.append(header_offsets_temp[i])
+            else:
+                print(f'ZIP file header at {header_offsets_temp[i]} has no associated footer or its footer is invalid')
+
+
+        for i in range(len(header_offsets_final)):
+            files.append({'start': header_offsets_final[i], 'end': footer_offsets[i] + 22 + comment_size})
+        
+        # Remove false positives from file pool
+        for file_pos in range(len(files)):
+            do_not_add = False
+
+            for file_start_check in files[file_pos:]:
+                if file_start_check['start'] < files[file_pos]['end'] and file_start_check['start'] > files[file_pos]['start']:
+                    do_not_add = True
+
+            for file_end_check in files[:file_pos]:
+                if file_end_check['end'] > files[file_pos]['start'] and file_end_check['end'] < files[file_pos]['end']:
+                    do_not_add = True
+            
+            if do_not_add != True:
+                final_files.append({'start': files[file_pos]['start'], 'end': files[file_pos]['end']})
+        
+
+        for i in range(len(final_files)):
+            print(f'ZIP file found at {final_files[i]["start"]}, {final_files[i]["end"]}')
+
+            zip_file = File(PREFIX, 'zip', source)
+            zip_file.start = final_files[i]["start"]
+            zip_file.end = final_files[i]["end"]
+            list.append(zip_file)
+
+    return list
 
 # start
 if __name__ == '__main__':
