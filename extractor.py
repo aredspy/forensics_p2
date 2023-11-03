@@ -70,6 +70,7 @@ def main():
     find_PNG(source, files)
     find_JPG(source, files)
     find_BMP(source, files)
+    find_ZIP(source, files)
 
     # extract all instances of files
 
@@ -456,6 +457,18 @@ def find_JPG(source, list):
         while header != -1:
 
             header = mm.find(b'\xFF\xD8\xFF\xE0', offset)
+
+            #only add header to list if byte sequence is found
+            if header != -1:
+                header_offsets.append(header)
+                offset = header + 4
+
+        # special exif format header
+        header = 0
+        offset = 0
+        while header != -1:
+
+            header = mm.find(b'\xff\xd8\xff\xdb', offset)
 
             #only add header to list if byte sequence is found
             if header != -1:
