@@ -1,4 +1,6 @@
-#!/usr/bin/python3
+#!/usr/bin/
+
+# Developed on Python 3.11
 
 #imports
 import mmap
@@ -108,15 +110,6 @@ def find_MPG(source, list):
             if footer == -1:
                 print(f'MPG file header at {header} has no associated footer')
                 return list
-
-            # sanity check
-            #another = mm.find(b'\x00\x00\x01\xB3', header + 4, footer)
-
-            #if another != -1:
-            #    print(f'MPG file footer at {footer} has multiple possible headers, currently at {header}. Continuing search...')
-            #    offset = header + 4
-            #    header = mm.find(b'\x00\x00\x01\xB3', offset)
-            #    continue
             
             print(f'MPG file found at {header}, {footer}')
 
@@ -249,11 +242,6 @@ def find_GIF(source, list):
             if header != -1:
                 header_offsets.append(header)
                 offset = header + 6
-
-        # sort headers because they're not necessarily in the correct order
-        # I don't think this is needed anymore
-        #header_offsets.sort()
-        #print(header_offsets)
         
         #starting from each header, find the footer
         for i in range(len(header_offsets)):
@@ -359,7 +347,6 @@ def find_AVI(source, list):
         
     return list
 
-
 # Finds all PNG files
 def find_PNG(source, list):
 
@@ -401,7 +388,6 @@ def find_PNG(source, list):
             list.append(png_file)
         
     return list
-
 
 # Finds all BMP files
 def find_BMP(source, list):
@@ -495,7 +481,8 @@ def find_JPG(source, list):
             list.append(jpg_file)
 
     return list
-    
+
+# Finds all ZIP files  
 def find_ZIP(source, list):
 
     with open(source, 'r+b') as f:
